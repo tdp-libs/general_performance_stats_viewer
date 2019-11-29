@@ -5,7 +5,7 @@
 
 namespace general_performance_stats_viewer
 {
-
+TP_DECLARE_ID(                      toolTipSID,                         "Tool tip");
 }
 
 #endif
