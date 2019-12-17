@@ -8,6 +8,8 @@
 #include "tp_maps/picking_results/PointsPickingResult.h"
 #include "tp_maps/picking_results/LinesPickingResult.h"
 
+#include "tp_utils/DebugUtils.h"
+
 #include <QBoxLayout>
 #include <QSplitter>
 #include <QListWidget>
@@ -66,6 +68,7 @@ struct MainWindow::Private
     if(path.isEmpty())
       return;
 
+    size_t pointCount{0};
     std::map<std::string, std::shared_ptr<TraceDetails_lt>> traces;
 
     std::ifstream infile(path.toStdString());
@@ -94,11 +97,14 @@ struct MainWindow::Private
       if(!trace)
         trace = std::make_shared<TraceDetails_lt>();
 
+      pointCount++;
       trace->points.push_back({i, value});
 
       if(value>trace->maxValue)
         trace->maxValue = value;
     }
+
+    tpWarning() << "Loaded " << pointCount << " data points.";
 
     tpDeleteAll(pointLayers);
     pointLayers.clear();
