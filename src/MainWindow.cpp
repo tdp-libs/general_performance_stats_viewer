@@ -1,10 +1,10 @@
 #include "general_performance_stats_viewer/MainWindow.h"
-#include "general_performance_stats_viewer/controllers/GraphController.h"
 #include "general_performance_stats_viewer/MapWidget.h"
 
+#include "tp_maps/controllers/GraphController.h"
 #include "tp_maps/layers/PointsLayer.h"
-#include "tp_maps/textures/DefaultSpritesTexture.h"
 #include "tp_maps/layers/LinesLayer.h"
+#include "tp_maps/textures/DefaultSpritesTexture.h"
 #include "tp_maps/picking_results/PointsPickingResult.h"
 #include "tp_maps/picking_results/LinesPickingResult.h"
 
@@ -48,7 +48,7 @@ struct MainWindow::Private
   QMenu* listWidgetMenu{nullptr};
 
   general_performance_stats_viewer::MapWidget* mapWidget{nullptr};
-  general_performance_stats_viewer::GraphController* graphController{nullptr};
+  tp_maps::GraphController* graphController{nullptr};
 
   std::vector<tp_maps::Layer*> pointLayers;
   std::vector<tp_maps::Layer*> lineLayers;
@@ -364,7 +364,7 @@ MainWindow::MainWindow():
   connect(d->mapWidget, &general_performance_stats_viewer::MapWidget::pointsLayerToolTipEvent, [&](QHelpEvent* helpEvent, tp_maps::PointsPickingResult* result){d->pointsLayerToolTipEvent(helpEvent, result);});
   connect(d->mapWidget, &general_performance_stats_viewer::MapWidget::linesLayerToolTipEvent, [&](QHelpEvent* helpEvent, tp_maps::LinesPickingResult* result){d->linesLayerToolTipEvent(helpEvent, result);});
 
-  d->graphController = new general_performance_stats_viewer::GraphController(d->mapWidget->map());
+  d->graphController = new tp_maps::GraphController(d->mapWidget->map());
 
   splitter->setSizes({1000, 6000});
 }
