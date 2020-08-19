@@ -327,6 +327,8 @@ struct MainWindow::Private
 MainWindow::MainWindow():
   d(new Private(this))
 {
+  setWindowTitle("Performance Stats Viewer");
+
   auto mainLayout = new QVBoxLayout(this);
   mainLayout->setContentsMargins(0,0,0,0);
 
