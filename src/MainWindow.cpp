@@ -14,6 +14,8 @@
 #include <QSplitter>
 #include <QListWidget>
 #include <QPushButton>
+#include <QCheckBox>
+#include <QLineEdit>
 #include <QFileDialog>
 #include <QMenu>
 #include <QCursor>
@@ -46,6 +48,7 @@ struct MainWindow::Private
 
   QListWidget* listWidget{nullptr};
   QMenu* listWidgetMenu{nullptr};
+  QCheckBox* normalizeIndividual{nullptr};
 
   general_performance_stats_viewer::MapWidget* mapWidget{nullptr};
   tp_maps::GraphController* graphController{nullptr};
@@ -53,6 +56,11 @@ struct MainWindow::Private
   std::vector<tp_maps::Layer*> pointLayers;
   std::vector<tp_maps::Layer*> lineLayers;
   std::vector<std::vector<size_t>> originalValues;
+
+  size_t i{0};
+  size_t maxValue{1};
+  size_t pointCount{0};
+  std::map<std::string, std::shared_ptr<TraceDetails_lt>> traces;
 
   //################################################################################################
   Private(MainWindow* q_):
@@ -68,13 +76,27 @@ struct MainWindow::Private
     if(path.isEmpty())
       return;
 
-    size_t pointCount{0};
-    std::map<std::string, std::shared_ptr<TraceDetails_lt>> traces;
+    std::string lineStart = "@LST@";
+    std::string lineEnd = "#LST#";
+
+    i=0;
+    maxValue = 1;
+    pointCount = 0;
+    traces.clear();
 
     std::ifstream infile(path.toStdString());
-    size_t i=0;
     for(std::string line; std::getline(infile, line);)
     {
+      if(size_t p = line.find(lineStart); p == std::string::npos)
+        continue;
+      else
+        line = line.substr(p+lineStart.size());
+
+      if(size_t p = line.find(lineEnd); p == std::string::npos)
+        continue;
+      else
+        line = line.substr(0, p);
+
       if(line == "==================")
       {
         i++;
@@ -102,10 +124,19 @@ struct MainWindow::Private
 
       if(value>trace->maxValue)
         trace->maxValue = value;
+
+      if(value>maxValue)
+        maxValue = value;
     }
 
     tpWarning() << "Loaded " << pointCount << " data points.";
 
+    updateGraph();
+  }
+
+  //################################################################################################
+  void updateGraph()
+  {
     tpDeleteAll(pointLayers);
     pointLayers.clear();
 
@@ -117,6 +148,7 @@ struct MainWindow::Private
     listWidget->clear();
 
     std::vector<std::string> names;
+    names.reserve(traces.size());
     for(const auto& t : traces)
       names.push_back(t.first);
 
@@ -127,6 +159,8 @@ struct MainWindow::Private
     for(const auto& name : names)
     {
       const auto& trace = traces[name];
+
+      float max = normalizeIndividual->isChecked()?float(trace->maxValue):float(maxValue);
 
       int hue = int(float(t) / float(traces.size()) * 360.0f);
       QColor color = QColor::fromHsl(hue, 255, 128);
@@ -148,7 +182,7 @@ struct MainWindow::Private
       {
         const auto& src = trace->points.at(p);
         auto& dst = points.at(p);
-        dst.position = glm::vec3(float(src.first) / float(i) * 8.0f, float(src.second) / float(trace->maxValue), 0.0f);
+        dst.position = glm::vec3(float(src.first) / float(i) * 8.0f, float(src.second) / max, 0.0f);
         dst.color = colorF;
         dst.radius = 2.5f;
         line.lines.at(p) = dst.position;
@@ -205,14 +239,14 @@ struct MainWindow::Private
   //################################################################################################
   void showSelected()
   {
-    for(auto i : listWidget->selectedItems())
+    Q_FOREACH(auto i, listWidget->selectedItems())
       i->setCheckState(Qt::Checked);
   }
 
   //################################################################################################
   void hideSelected()
   {
-    for(auto i : listWidget->selectedItems())
+    Q_FOREACH(auto i, listWidget->selectedItems())
       i->setCheckState(Qt::Unchecked);
   }
 
@@ -266,7 +300,7 @@ struct MainWindow::Private
   //################################################################################################
   void bringToFront()
   {
-    for(auto i : listWidget->selectedItems())
+    Q_FOREACH(auto i, listWidget->selectedItems())
       bringItemToFront(i);
   }
 
@@ -308,7 +342,7 @@ struct MainWindow::Private
     for(size_t i=0; i<lineLayers.size(); i++)
     {
       auto l = lineLayers.at(i);
-      if(l == result->linesLayer)
+      if(l == result->layer)
       {
         if(i>=size_t(listWidget->count()))
           break;
@@ -340,6 +374,20 @@ MainWindow::MainWindow():
   auto leftLayout = new QVBoxLayout(leftWidget);
   leftLayout->setContentsMargins(6,0,0,6);
 
+  auto search = new QLineEdit();
+  leftLayout->addWidget(search);
+  connect(search, &QLineEdit::textEdited, this, [=]
+  {
+    auto text = search->text().toLower();
+    d->listWidget->clearSelection();
+    for(int i=0; i<d->listWidget->count(); i++)
+    {
+      auto item = d->listWidget->item(i);
+      if(item->text().toLower().contains(text))
+        item->setSelected(true);
+    }
+  });
+
   d->listWidget = new QListWidget();
   leftLayout->addWidget(d->listWidget);
   connect(d->listWidget, &QListWidget::itemChanged, [&](QListWidgetItem* item){d->itemChanged(item);});
@@ -355,6 +403,10 @@ MainWindow::MainWindow():
   connect(d->listWidgetMenu->addAction("Hide all"),                 &QAction::triggered, [&]{d->hideAll();              });
   connect(d->listWidgetMenu->addAction("Hide all except selected"), &QAction::triggered, [&]{d->hideAllExceptSelected();});
   connect(d->listWidgetMenu->addAction("Bring to front"),           &QAction::triggered, [&]{d->bringToFront();         });
+
+  d->normalizeIndividual = new QCheckBox("Normalize individuals");
+  leftLayout->addWidget(d->normalizeIndividual);
+  connect(d->normalizeIndividual, &QCheckBox::clicked, this, [&]{d->updateGraph();});
 
   auto loadButton = new QPushButton("Load");
   leftLayout->addWidget(loadButton);
